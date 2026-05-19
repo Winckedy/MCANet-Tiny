@@ -2,7 +2,20 @@
 
 A lightweight classification model for pavement crack detection, featuring selectable attention mechanisms and a complete training-to-deployment pipeline. This repository supports the ablation studies in the paper *"Edge-Deployable Crack Detection: Synergizing GAN-Based Synthesis with MCANet-Tiny for Real-Time Inspection"*.
 
-## Project Structure
+## Table of Contents
+
+- [1. Description](#1-description)
+- [2. Project Structure](#2-project-structure)
+- [3. Setup](#3-setup)
+- [4. Data Preparation](#4-data-preparation)
+- [5. Usage](#5-usage)
+- [6. Model Architecture](#6-model-architecture)
+- [7. Output](#7-output)
+- [8. License](#8-license)
+- [9. Citation](#9-citation)
+- [10. Contact](#10-contact)
+
+## 1. Project Structure
 ```
 MCANet-Tiny/
 ├── dataset/ 
@@ -66,5 +79,24 @@ python main.py --attn ca --optimizer adamw --scheduler cosine --epochs 50
 - FP32 and INT8 mobile-optimized models (`.ptl`)
 - Full performance report (`.txt`)
 
+## License
+This project is licensed under the GNU General Public License v3.0 – see the [LICENSE](LICENSE) file for details.
+
 ## Citation
-If you use this code, please cite the corresponding paper.
+If you use MCANet-Tiny in your research, please cite:
+
+```bibtex
+@software{MCANet-Tiny2026,
+  author = {Jia Chen, Shuyang Chen, Yun Que, Yining Chen, Jingwen Wang},
+  title = {MCANet-Tiny: Edge-Deployable Crack Detection via Synergistic GAN-Based Synthesis and Lightweight Classification},
+  year = {2026},
+  url = {https://github.com/Winckedy/MCANet-Tiny},
+  note = {Lightweight classifier for pavement crack detection with coordinated attention and pruning}
+}
+```
+
+## Contact
+For questions or issues, please open an issue on GitHub or email:  
+2500516015@fzu.edu.cn
+
+Happy generating! 🚗🛣️
