@@ -8,12 +8,28 @@ This repository contains the official implementation of **MCANet‑Tiny**, an ul
 - [3. Requirements](#3-requirements)
 - [4. Data Preparation](#4-data-preparation)
 - [5. Training](#5-training)
-- [6. Evaluation & Quantization](#6-evaluation--quantization)
-- [7. Model Architecture](#7-model-architecture)
-- [8. Results & Metrics](#8-results--metrics)
-- [9. License](#9-license)
-- [10. Citation](#10-citation)
-- [11. Contact](#11-contact)
+  - [5.1 Basic Command](#51-basic-command)
+  - [5.2 Command Line Arguments](#52-command-line-arguments)
+  - [5.3 Monitoring Training](#53-monitoring-training)
+- [6. Reproducing Paper Results](#6-reproducing-paper-results)
+  - [6.1 Ablation Study Configurations](#61-ablation-study-configurations)
+  - [6.2 Training on Different Datasets](#62-training-on-different-datasets)
+- [7. Evaluation & Quantization](#7-evaluation--quantization)
+  - [7.1 Evaluation on Test Set](#71-evaluation-on-test-set)
+  - [7.2 INT8 Quantization for Edge Deployment](#72-int8-quantization-for-edge-deployment)
+  - [7.3 Computing Model Statistics (Parameters / FLOPs)](#73-computing-model-statistics-parameters--flops)
+- [8. Model Architecture](#8-model-architecture)
+  - [8.1 Backbone Modifications](#81-backbone-modifications)
+  - [8.2 Coordinate Attention (CA)](#82-coordinate-attention-ca)
+  - [8.3 Training Optimizations](#83-training-optimizations)
+- [9. Results & Metrics](#9-results--metrics)
+  - [9.1 Performance on Cross‑Dataset Test Benchmark (CDTS)](#91-performance-on-crossdataset-test-benchmark-cdts)
+  - [9.2 Real‑Time Deployment on Edge Devices (INT8)](#92-realtime-deployment-on-edge-devices-int8)
+  - [9.3 Ablation Study](#93-ablation-study)
+  - [9.4 Classification Report (on CDTS)](#94-classification-report-on-cdts)
+- [10. License](#10-license)
+- [11. Citation](#11-citation)
+- [12. Contact](#12-contact)
 
 ## 1. Description
 
@@ -148,10 +164,47 @@ Console output every epoch:
 ```
 Epoch 1/50: train_loss=1.234, train_acc=45.67, val_loss=1.098, val_acc=52.34, best_acc=52.34
 ```
+## 6. Reproducing Paper Results
 
-## 6. Evaluation & Quantization
+This section provides ready‑to‑use commands to reproduce the ablation studies (Table 7 in the paper) and train on different dataset configurations (A‑set, T‑set, S‑set, G‑set).
 
-### 6.1 Evaluation on Test Set
+### 6.1 Ablation Study Configurations
+
+The following commands replicate each row of the ablation study using the **G‑set** (combined real augmented + synthetic data). Ensure your `G-SET` folder is prepared under `--data_root` with `train/` and `val/` subdirectories.
+
+| Configuration                          | Command                                                                                                                              |
+|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| Pruned MobileNetV3‑Small (baseline)    | `python main.py --mode train --data_root ./dataset/G-SET --name baseline --attn none --optimizer adam --scheduler step --epochs 50`  |
+| + CA                                   | `python main.py --mode train --data_root ./dataset/G-SET --name with_CA --attn ca --optimizer adam --scheduler step --epochs 50`     |
+| + AdamW                                | `python main.py --mode train --data_root ./dataset/G-SET --name with_AdamW --attn ca --optimizer adamw --scheduler step --epochs 50` |
+| + Cosine Annealing (Final MCANet‑Tiny) | `python main.py --mode train --data_root ./dataset/G-SET --name final --attn ca --optimizer adamw --scheduler cosine --epochs 50`    |
+
+**Note**: The `--attn` argument is a custom flag you can add to `main.py` to control CA insertion. If your implementation doesn’t have it, you can manually edit `model.py` or use separate branches. Alternatively, you can use the `--model_variant` argument as shown below.
+
+### 6.2 Training on Different Datasets
+
+To evaluate the impact of different data sources (A‑set, T‑set, S‑set, G‑set), run the following commands after preparing each dataset under `./dataset/` with the required folder structure.
+
+| Dataset | Description                                     | Command                                                                                                                                  |
+|---------|-------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| A‑set   | Original 200 images per class (no augmentation) | `python main.py --mode train --data_root ./dataset/A-SET --name experiment_A --attn ca --optimizer adamw --scheduler cosine --epochs 50` |
+| T‑set   | Basic augmentations (flip, rotation, color)     | `python main.py --mode train --data_root ./dataset/T-SET --name experiment_T --attn ca --optimizer adamw --scheduler cosine --epochs 50` |
+| S‑set   | Synthetic images from RoadFreq‑GAN only         | `python main.py --mode train --data_root ./dataset/S-SET --name experiment_S --attn ca --optimizer adamw --scheduler cosine --epochs 50` |
+| G‑set   | T‑set + S‑set (recommended for final model)     | `python main.py --mode train --data_root ./dataset/G-SET --name experiment_G --attn ca --optimizer adamw --scheduler cosine --epochs 50` |
+
+All commands use the final MCANet‑Tiny configuration (CA + AdamW + Cosine Annealing). You can modify `--epochs`, `--batch_size`, etc. as needed.
+
+**Expected results** (from the paper):
+
+- A‑set: ~65% accuracy
+- T‑set: ~83% accuracy
+- S‑set: ~82% accuracy
+- G‑set: ~93% accuracy
+
+See Section 9 for full metrics and comparisons.
+## 7. Evaluation & Quantization
+
+### 7.1 Evaluation on Test Set
 
 ```bash
 python main.py --mode eval --data_root /path/to/dataset --ckpt results/my_experiment/model_best.pth
@@ -163,7 +216,7 @@ This will output:
 - Confusion matrix (saved as `results/{name}/test_confusion.png`).
 - Classification report (saved as `results/{name}/test_report.txt`).
 
-### 6.2 INT8 Quantization for Edge Deployment
+### 7.2 INT8 Quantization for Edge Deployment
 
 ```bash
 python main.py --mode quantize --ckpt results/my_experiment/model_best.pth --output quantized_model.ptl
@@ -181,7 +234,7 @@ To evaluate the quantized model:
 python evaluate.py --quantized --ckpt quantized_model.ptl --data_root /path/to/dataset
 ```
 
-### 6.3 Computing Model Statistics (Parameters / FLOPs)
+### 7.3 Computing Model Statistics (Parameters / FLOPs)
 
 ```bash
 python -m thop --model mcanet.model.MCANetTiny --input_size 224 3
@@ -198,9 +251,9 @@ Output example:
 MCANet-Tiny: params=0.12M, GFLOPs=0.02
 ```
 
-## 7. Model Architecture
+## 8. Model Architecture
 
-### 7.1 Backbone Modifications
+### 8.1 Backbone Modifications
 
 MCANet‑Tiny starts from MobileNetV3‑Small and applies:
 
@@ -208,7 +261,7 @@ MCANet‑Tiny starts from MobileNetV3‑Small and applies:
 - **Global Channel Scaling**: width multiplier α=0.4 reduces all convolutional channels (e.g., 16→6, 24→10, …).
 - **Classification Head**: Global Average Pooling → Dropout(0.5) → Linear(512, 5).
 
-### 7.2 Coordinate Attention (CA)
+### 8.2 Coordinate Attention (CA)
 
 CA module is inserted after each inverted residual block. It encodes spatial attention in two separate directions (height and width) without global pooling, preserving precise positional information. The module adds only ~0.01 M extra parameters.
 
@@ -220,22 +273,22 @@ Given input feature map `X` of size `C×H×W`, CA computes:
 
 Then applies shared 1×1 convolution, batch norm, non‑linearity, splits into two tensors, followed by two dilated 3×3 convolutions, sigmoid activation, and element‑wise multiplication with the original feature map.
 
-### 7.3 Training Optimizations
+### 8.3 Training Optimizations
 
 - **AdamW** (decoupled weight decay) improves regularization.
 - **Cosine Annealing with Linear Warmup** (3 epochs) stabilizes early training.
 - **Cross‑Entropy Loss** with label smoothing (default: 0.1).
 
-## 8. Results & Metrics
+## 9. Results & Metrics
 
-### 8.1 Performance on Cross‑Dataset Test Benchmark (CDTS)
+### 9.1 Performance on Cross‑Dataset Test Benchmark (CDTS)
 
 | Model                        | Accuracy (%) | Params (M) | GFLOPs | Size (MB) | FPS (Desktop GPU) |
 |------------------------------|--------------|------------|--------|-----------|-------------------|
 | MobileNetV3‑Small (baseline) | 88.30        | 1.52       | 0.12   | 6.00      | 91.15             |
 | MCANet‑Tiny (pruned + CA)    | 93.40        | 0.12       | 0.02   | 0.54      | 118.31            |
 
-### 8.2 Real‑Time Deployment on Edge Devices (INT8)
+### 9.2 Real‑Time Deployment on Edge Devices (INT8)
 
 | Platform              | Average FPS | Accuracy (%) |
 |-----------------------|-------------|--------------|
@@ -245,7 +298,7 @@ Then applies shared 1×1 convolution, batch norm, non‑linearity, splits into t
 
 All tests run on live video streams (1080p, cropped to 224×224).
 
-### 8.3 Ablation Study
+### 9.3 Ablation Study
 
 | Configuration                       | Accuracy (%) | Params (M) |
 |-------------------------------------|--------------|------------|
@@ -254,7 +307,7 @@ All tests run on live video streams (1080p, cropped to 224×224).
 | + AdamW                             | 91.90        | 0.12       |
 | + Cosine Annealing (final)          | 93.40        | 0.12       |
 
-### 8.4 Classification Report (on CDTS)
+### 9.4 Classification Report (on CDTS)
 
 | Class            | Precision | Recall | F1‑score |
 |------------------|-----------|--------|----------|
@@ -266,11 +319,11 @@ All tests run on live video streams (1080p, cropped to 224×224).
 
 Macro average: **93.4% F1**.
 
-## 9. License
+## 10. License
 
 This project is licensed under the **GNU General Public License v3.0** – see the [LICENSE](LICENSE) file for details.
 
-## 10. Citation
+## 11. Citation
 
 If you use MCANet‑Tiny in your research, please cite:
 
@@ -284,7 +337,7 @@ If you use MCANet‑Tiny in your research, please cite:
 }
 ```
 
-## 11. Contact
+## 12. Contact
 
 For questions or issues, please open an issue on GitHub or email:  
 2500516015@fzu.edu.cn
