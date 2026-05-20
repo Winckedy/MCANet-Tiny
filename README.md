@@ -46,6 +46,13 @@ The model is designed to work with synthetic data from RoadFreq‑GAN, but can a
 
 ```
 MCANet-Tiny/
+├── dataset/                  # Place datasets here
+│   ├── A-SET/                # Original 200 images per class
+│   │   ├── train/
+│   │   └── val/
+│   ├── T-SET/                # Basic augmentations (1000 per class)
+│   ├── S-SET/                # Synthetic images from RoadFreq-GAN (1000 per class)
+│   └── G-SET/                # T-SET + S-SET (2000 per class)
 ├── mcanet/
 │   ├── __init__.py
 │   ├── model.py              # MCANetTiny definition (CA, MobileNetV3 blocks)
